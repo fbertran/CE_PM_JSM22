@@ -1,0 +1,700 @@
+```{r, echo=FALSE}
+Sys.setenv(LANG = "en")
+SOLS=TRUE
+knitr::opts_chunk$set(curq = 0)
+newq <- function() {
+  knitr::opts_chunk$set(curq = knitr::opts_chunk$get("curq")+1)
+  return(paste(knitr::opts_chunk$get("curq"),".",sep=""))
+}
+getq <- function() {
+  return(paste(knitr::opts_chunk$get("curq"),".",sep=""))
+}
+knitr::opts_chunk$set(curex = 1)
+newex <- function() {
+  knitr::opts_chunk$set(curex = knitr::opts_chunk$get("curex")+1)
+  return(paste(knitr::opts_chunk$get("curex"),"",sep=""))
+}
+getex <- function() {
+  return(paste(knitr::opts_chunk$get("curex"),"",sep=""))
+}
+```
+
+---
+title: "Introduction to Process Mining"
+author: "Frédéric Bertrand and Yoann Valero"
+date: "08/09/2022"
+output: 
+  html_document:
+    fig_height: 6
+    fig_width: 12
+  pdf_document:
+    fig_height: 6
+    fig_width: 12
+  word_document:
+    fig_height: 6
+    fig_width: 12
+---
+
+```{r, setup, include=FALSE}
+require(mosaic)   # Load additional packages here 
+knitr::opts_chunk$set(
+  tidy=FALSE,     # display code as typed
+  size="small")   # slightly smaller font for code
+```
+
+### Setup
+
+You need to install several `R` packages from the BupaRverse.
+```{r, eval=FALSE}
+install.packages("bupaR")
+install.packages("edeaR")
+install.packages("eventdataR")
+install.packages("processmapR")
+install.packages("processanimateR")
+install.packages("petrinetR")
+```
+
+<div class="alert alert-info">
+### Slide 8
+</div>
+
+
+```{r}
+library(bupaR)
+```
+
+bupaR autmaticaly loads eventdataR
+
+```{r}
+#library(eventdataR)
+```
+
+#### Retrieve example datasets from the eventdataR
+
+When loading the bupaR package, the `traffic_fines` dataset is also loaded into memory.
+
+#### Print the case long format table (slide 8)
+```{r}
+traffic_fines
+```
+
+We have to turn the `traffic_fines` dataset into an eventlog/log class using the `simple_eventlog` function.
+
+```{r}
+log_traffic_fines <- simple_eventlog(traffic_fines)
+```
+
+For this dataset, you can also just add the "log" class to the `R` object.
+
+```{r, eval=FALSE}
+log_traffic_fines <- traffic_fines
+class(log_traffic_fines) <- c("log",class(log_traffic_fines))
+```
+
+
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** From the same `eventdataR` package, retrieve the datasets:
+
+a. `sepsis`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+<div class="alert alert-info">
+### Slide 9
+</div>
+
+#### Print the case long format table (slide 9)
+
+```{r}
+case_list(log_traffic_fines)
+```
+
+A more detailed view on lists:
+```{r}
+cases(log_traffic_fines)
+```
+
+#### Rapid glance to the cases' length distribution
+```{r}
+case_length_dist_tf <- sapply(strsplit(case_list(log_traffic_fines)$trace, ","), length) 
+```
+
+
+```{r}
+table(case_length_dist_tf)
+```
+
+```{r}
+barplot(table(case_length_dist_tf))
+```
+
+```{r}
+quantile(case_length_dist_tf,probs = seq(0, 1, 0.1))
+```
+
+
+```{r}
+log_traffic_fines %>%
+  durations(units="hours") %>% # duration of the cases
+  as.data.frame(units="hours") %>% # cases and their duration
+  ggplot(aes(x=duration))+
+  geom_density(color="#1F77b4",
+                 fill="#17BECF",
+                 alpha=.5)+
+  theme_minimal()
+```
+
+
+
+#### Print the trace table (slide 9)
+
+```{r}
+trace_list(log_traffic_fines)
+```
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Display the case and trace tables as well as the cases' lengths distribution for the following datasets:
+
+a. `sepsis`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+For instance, here are the results for the sepsis log.
+```{r, echo=FALSE, cache=TRUE}
+sepsis
+log_sepsis <- simple_eventlog(sepsis)
+case_list(log_sepsis)
+cases(log_sepsis)
+case_length_dist_se <- sapply(strsplit(case_list(log_sepsis)$trace, ","), length) 
+table(case_length_dist_se)
+barplot(table(case_length_dist_se))
+quantile(case_length_dist_se,probs = seq(0, 1, 0.1))
+log_sepsis %>%
+  durations(units="hours") %>% # duration of the cases
+  as.data.frame(units="hours") %>% # cases and their duration
+  ggplot(aes(x=duration))+
+  geom_density(color="#1F77b4",
+                 fill="#17BECF",
+                 alpha=.5)+
+  theme_minimal()
+```
+
+
+<div class="alert alert-info">
+### Slide 10
+</div>
+
+The `print` function displays a summary of the log. The same result is provided by just typinf the log's object name in the `R`console.
+```{r}
+print(log_traffic_fines)
+```
+
+To get the number of events:
+```{r}
+n_events(log_traffic_fines)
+```
+
+To get the number of cases:
+```{r}
+n_cases(log_traffic_fines)
+```
+
+To get the number of traces:
+```{r}
+n_traces(log_traffic_fines)
+```
+
+To get the number of activities:
+```{r}
+n_activities(log_traffic_fines)
+```
+
+Recall the formula for *Average case length*:
+
+$$\displaystyle\frac{Event}{Cases}=\frac{\mathrm{n\_events(log\_traffic\_fines)}}{\mathrm{n\_cases(log\_traffic\_fines)}}$$
+
+```{r}
+n_events(log_traffic_fines)/n_cases(log_traffic_fines)
+```
+
+
+$\displaystyle\frac{Event}{Cases}=`r n_events(log_traffic_fines)/n_cases(log_traffic_fines)`$
+
+Recall the formula for *Process uniformity*:
+
+$$\displaystyle 1−\frac{Traces-1}{Cases}=1-\frac{\mathrm{n\_traces(log\_traffic\_fines)-1}}{\mathrm{n\_cases(log\_traffic\_fines)}}$$
+
+```{r}
+1-(n_traces(log_traffic_fines)-1)/n_cases(log_traffic_fines)
+```
+
+
+$\displaystyle\frac{Event}{Cases}=`r 1-(n_traces(log_traffic_fines)-1)/n_cases(log_traffic_fines)`$
+
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Compute the average case length and the process uniformity for the following datasets:
+
+a. `sepsis`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+
+
+<div class="alert alert-info">
+### Slide 13
+</div>
+
+
+Compute and display the *Precedence Matrix* for absolute frequencies.
+
+```{r, cache=TRUE}
+process_matrix(log_traffic_fines)
+```
+
+```{r, cache=TRUE}
+plot(process_matrix(log_traffic_fines))
+```
+
+It is a ggplot object that can be customized.
+
+```{r, cache=TRUE}
+plot(process_matrix(log_traffic_fines))+
+  geom_tile(aes(fill=n))+
+  geom_text(aes(label=n),color="white",size=2.5)+
+  ggtitle("Traffic fines process map")+
+  scale_fill_viridis_c(option="turbo")+
+  theme_light()+
+  theme(axis.text.x=element_text(angle=45,
+                                 hjust=1,
+                                 size=8),
+        axis.text.y=element_text(size=8))
+```
+
+In addition to the absolute frequencies, other quantities can be computed:
+
+* "absolute", 
+* "relative", 
+* "absolute-case", 
+* "relative-case", 
+* "relative-antecedent", 
+* "relative-consequent",
+
+where absolute, relative (percentage of activity instances) or relative_case (percentage of cases the activity occurs in).
+
+
+```{r, cache=TRUE}
+plot(process_matrix(log_traffic_fines,type=frequency(value="relative")))+geom_tile(aes(fill = rel_n))+geom_text(aes(label=round(rel_n * 100, 2)),color="white",size=2.5)
+```
+
+```{r, cache=TRUE}
+plot(process_matrix(log_traffic_fines,type=frequency(value="absolute-case")))+geom_tile(aes(fill = n_cases))+geom_text(aes(label=n_cases),color="white",size=2.5)
+```
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Compute and display precedence matrices for the following datasets:
+
+a. `sepsis`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+
+<div class="alert alert-info">
+### Slide 17
+</div>
+
+The percentage coverage of the trace to explore. Default is 20% most (in)frequent
+```{r, cache=TRUE}
+trace_explorer(log_traffic_fines, coverage=1)
+```
+
+Instead of setting coverage, you can set an exact number of traces. Should be an integer larger than 0.
+```{r, cache=TRUE}
+trace_explorer(log_traffic_fines, n_traces = 10)
+```
+
+```{r}
+library(TraMineR)
+```
+
+```{r echo=FALSE, message=FALSE}
+cl_tr<-case_list(log_traffic_fines)$trace
+s_tf<-cl_tr %>%
+  seqdecomp(sep=",") %>%
+  seqdef
+```
+
+
+Plot selected cases.
+```{r, cache=TRUE}
+seqplot(s_tf,
+        type="i",  
+        cex.axis=.8,
+        cex.legend=.8,
+        legend.prop = .44, 
+        with.legend = "right",
+)
+```
+
+Other types : 
+
+* d, for state distribution plots
+* dH, for chronograms with overlayed entropy line
+* f, for sequence frequency plots
+* i, for selected sequence index plots
+* I, for whole set index plots
+* Ht, for transversal entropy plots
+* ms, for plotting the sequence of modal states
+* mt,  for mean times plots
+* pc, for parallel coordinate plots
+
+
+```{r, cache=TRUE}
+seqplot(s_tf,
+        type="dH",  
+        cex.axis=.8,
+        cex.legend=.8,legend.prop = .44, with.legend = "right",
+)
+```
+
+```{r, cache=TRUE}
+seqplot(s_tf,
+        type="Ht",  
+        cex.axis=.8,
+        cex.legend=.8,
+        legend.prop = .44, 
+        with.legend = "right",
+)
+```
+
+```{r, cache=TRUE}
+seqplot(s_tf,
+        type="pc",  
+        cex.axis=.8,
+        cex.legend=.8,
+        legend.prop = .44, 
+        with.legend = "right",
+)
+```
+
+To get the state frequencies use, the `seqstatd` function.
+```{r}
+seqstatd(s_tf, weighted=FALSE)
+```
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Use the trace_explorer and compute entropies for the following datasets:
+
+a. `sepsis`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+
+
+
+<div class="alert alert-info">
+### Slide 21
+</div>
+
+```{r}
+library(heuristicsmineR)
+process_map(L_heur_1)
+```
+
+You can easily filter the data to map using the `%>%` operator.
+```{r}
+pm<-L_heur_1 %>%
+  filter_activity_frequency(percentage=1) %>%
+  filter_trace_frequency(percentage=1) %>%
+  process_map(sec_nodes=frequency(value="absolute"),
+              type=performance(FUN=mean,
+                               units="hours",
+                               color_scale="Greens",
+                               color_edges="Greens"),
+              unit="hours")
+pm
+```
+
+```{r}
+pm<-L_heur_1 %>%
+  filter_activity_frequency(percentage=.5) %>%
+  filter_trace_frequency(percentage=.5) %>%
+  process_map(sec_nodes=frequency(value="absolute"),
+              type=performance(FUN=mean,
+                               units="hours",
+                               color_scale="Greens",
+                               color_edges="Greens"),
+              unit="hours")
+pm
+```
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Create those maps for the following datasets:
+
+a. `sepsis`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+<div class="alert alert-info">
+### Slide 25
+</div>
+
+Full dataset
+```{r}
+process_map(log_traffic_fines, rankdir = "TB")
+```
+
+Filtering to get a 90% coverage of activity instances. 
+```{r}
+log_traffic_fines %>%
+  filter_trace_frequency(percentage=.9) %>%
+process_map(rankdir = "TB")
+```
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Create those maps for the following datasets:
+
+a. `sepsis`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+<div class="alert alert-info">
+### Slide 36
+</div>
+
+```{r, cache=TRUE}
+library("viridisLite")
+m<-log_sepsis %>%
+  dependency_matrix(threshold=0) %>%
+  (reshape2::melt)
+m[m$value!=0,] %>%
+  ggplot(aes(consequent, antecedent, label=round(value,2)))+
+  geom_tile(aes(fill=value), color="grey27")+
+  geom_text(color="white",size=2.5)+
+  theme_light()+
+  theme(axis.text.x=element_text(angle=45,
+                                 hjust=1,
+                                 size=8),
+        axis.text.y=element_text(size=8))
+```
+
+```{r, cache=TRUE}
+library("viridisLite")
+m<-log_sepsis %>%
+  dependency_matrix(threshold=.9) %>%
+  (reshape2::melt)
+m[m$value!=0,] %>%
+  ggplot(aes(consequent, antecedent, label=round(value,2)))+
+  geom_tile(aes(fill=value), color="grey27")+
+  geom_text(color="white",size=2.5)+
+  theme_light()+
+  theme(axis.text.x=element_text(angle=45,
+                                 hjust=1,
+                                 size=8),
+        axis.text.y=element_text(size=8))
+```
+
+<div class="alert alert-info">
+### Slide 39
+</div>
+
+To compute the process map, first:
+
+```{r}
+sepsis
+log_sepsis <- simple_eventlog(sepsis)
+```
+
+```{r, cache=TRUE}
+process_map(log_sepsis, rankdir = "TB")
+```
+
+Quite difficult to use, we need to mine it.
+
+<div class="alert alert-info">
+### Slide 40
+</div>
+
+To compute the causal net, first:
+
+#### Dependency matrix 
+
+
+```{r}
+sepsis
+log_sepsis <- simple_eventlog(sepsis)
+```
+
+```{r, cache=TRUE}
+library(heuristicsmineR)
+plot(dependency_matrix(log_sepsis))+geom_raster(aes(fill = dep))+geom_text(aes(label=round(dep, 2)),color="white",size=2.5)
+```
+
+The option `dependency_type` enables to tune the computation of the dependency matrix. For instance, `dependency_type=dependency_type_fhm(...)` where `...` stands for:
+
+```
+dependency_type_fhm(
+  threshold_dependency = 0.9,
+  threshold_l1 = threshold_dependency,
+  threshold_l2 = threshold_dependency,
+  threshold_frequency = 0,
+  all_connected = FALSE,
+  endpoints_connected = FALSE
+)
+```
+
+with 
+
+
+* `threshold_dependency` A dependency threshold, usually in the interval [0,1], filtering out dependencies below the threshold.
+
+* `threshold_l1` A dependency threshold, usually in the interval [0,1], filtering out self-loop dependencies below the threshold.
+
+* `threshold_l2` A dependency threshold, usually in the interval [0,1], filtering out length-two loop dependencies below the threshold.
+
+* `threshold_frequency` An absolute frequency threshold filtering dependencies which are observed infrequently.
+
+* `all_connected` If TRUE the best antecedent and consequent (as determined by the dependency measure) are going to be added regardless of the threshold value.
+
+* `endpoints_connected` If TRUE the start/end activity is added as antecedent/consequent when an activity would not be connected according to the threshold value.
+
+```{r, cache=TRUE}
+library("viridisLite")
+m<-log_sepsis %>%
+  dependency_matrix(threshold=.8) %>%
+  (reshape2::melt)
+m[m$value!=0,] %>%
+  ggplot(aes(consequent, antecedent, label=round(value,2)))+
+  geom_tile(aes(fill=value), color="grey27")+
+  scale_fill_gradientn(colors=viridis(256),
+                       name="Dependency\nmeasure")+
+  theme_light()+
+  theme(axis.text.x=element_text(angle=45,
+                                 hjust=1,
+                                 size=8),
+        axis.text.y=element_text(size=8))
+```
+
+```{r, cache=TRUE}
+cn_sep0<-causal_net(log_sepsis)
+cn_sep0
+```
+
+
+*Consider using the `all_connected` or `endpoints_connected` parameter when generating the dependency matrix.*
+
+```{r, cache=TRUE}
+cn_sep<-causal_net(log_sepsis, all_connected = TRUE)
+cn_sep
+```
+
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Compute precedence matrices and causal nets for the following datasets:
+
+a. `traffic_fines`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+<div class="alert alert-info">
+### Slide 40
+</div>
+
+
+```{r}
+pn1<-(as.petrinet(cn_sep))
+unique(pn1$flows$to[!pn1$flows$to %in% pn1$flows$from])
+render_PN(pn1)
+```
+
+Place/Transition Connecting Degree (PTCD)
+```{r}
+(n_flows(pn1)/n_places(pn1)+n_flows(pn1)/n_transitions(pn1))/2
+```
+
+
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Compute and display precedence matrices for the following datasets:
+
+a. `traffic_fines`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
+
+
+<div class="alert alert-info">
+### Animate process maps
+</div>
+
+
+```{r}
+library(processanimateR)
+animate_process(log_traffic_fines)
+```
+
+
+A more intricate example, from 
+```{r}
+library(processanimateR)
+library(dplyr)
+library(bupaR)
+# Extract only the lacticacid measurements
+lactic <- log_sepsis %>%
+    mutate(lacticacid = as.numeric(lacticacid)) %>%
+    filter_activity(c("LacticAcid")) %>%
+    as.data.frame() %>%
+    select("case" = case_id, 
+            "time" =  timestamp, 
+            value = lacticacid) # format needs to be 'case,time,value'
+
+# Remove the measurement events from the sepsis log
+sepsisBase <- log_sepsis %>%
+    filter_activity(c("LacticAcid", "CRP", "Leucocytes", "Return ER",
+                      "IV Liquid", "IV Antibiotics"), reverse = T) %>%
+    filter_trace_frequency(percentage = 0.95)
+
+# Animate with the secondary data frame `lactic`
+animate_process(sepsisBase, 
+                mode = "relative", 
+                duration = 300,
+                legend = "color", 
+                mapping = token_aes(color = token_scale(lactic, 
+                                                        scale = "linear", 
+                                                        range = c("#fff5eb","#7f2704")))) 
+```
+
+<div class="alert alert-success">
+`r newq()` **Hands-on training** Display animate the processes of the following logs:
+
+a. `traffic_fines`
+b. `hospital_billing`
+c. `hospital_log`
+d. `patients`
+</div>
