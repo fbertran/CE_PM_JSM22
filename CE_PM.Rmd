@@ -470,6 +470,15 @@ log_traffic_fines %>%
 process_map(rankdir = "TB")
 ```
 
+```{r}
+log_traffic_fines %>%
+  filter_trace_frequency(percentage=.9) %>%
+process_map(rankdir = "TB", performance(FUN=mean,
+                               units="hours",
+                               color_scale="Greens",
+                               color_edges="Greens"))
+```
+
 <div class="alert alert-success">
 `r newq()` **Hands-on training** Create those maps for the following datasets:
 
